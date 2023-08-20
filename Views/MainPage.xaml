@@ -1,0 +1,78 @@
+﻿<Page x:Class="QuickAttach.Views.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:viewModels="using:QuickAttach.ViewModels"
+      Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+      mc:Ignorable="d">
+
+    <Grid>
+        <StackPanel Margin="10"
+                    Orientation="Horizontal"
+                    Spacing="10">
+
+            <StackPanel Orientation="Horizontal">
+                <Button Width="25"
+                        Padding="0,4"
+                        VerticalAlignment="Center"
+                        Command="{x:Bind ViewModel.RunAndAttachCommand}"
+                        Foreground="Green"
+                        IsEnabled="{x:Bind ViewModel.CanRunAndAttach, Mode=OneWay}">
+                    <Button.Content>
+                        <FontIcon Glyph="&#xE768;" />
+                    </Button.Content>
+                </Button>
+
+                <Button Width="25"
+                        Padding="0,4"
+                        VerticalAlignment="Center"
+                        Command="{x:Bind ViewModel.RunAndAttachCommand}"
+                        Foreground="Red"
+                        IsEnabled="{x:Bind ViewModel.CanRunAndAttach.Equals(x:False), Mode=OneWay}">
+                    <Button.Content>
+                        <FontIcon Glyph="&#xE71A;" />
+                    </Button.Content>
+                </Button>
+
+                <Button Width="25"
+                        Padding="0,4"
+                        VerticalAlignment="Center"
+                        Command="{x:Bind ViewModel.RunAndAttachCommand}"
+                        Foreground="Red"
+                        IsEnabled="{x:Bind ViewModel.CanRunAndAttach.Equals(x:False), Mode=OneWay}">
+                    <Button.Content>
+                        <FontIcon Glyph="&#xEF3B;" />
+                    </Button.Content>
+                </Button>
+            </StackPanel>
+
+            <ItemsRepeater VerticalAlignment="Center" ItemsSource="{x:Bind ViewModel.Projects}">
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:Project">
+                        <ToggleButton BorderBrush="{x:Bind Brush}"
+                                      BorderThickness="0,0,1,1"
+                                      IsChecked="{x:Bind Run, Mode=TwoWay}">
+                            <ToggleButton.Content>
+                                <Grid ColumnDefinitions="25,Auto" ColumnSpacing="10">
+                                    <CheckBox HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              IsChecked="{x:Bind Attach, Mode=TwoWay}" />
+                                    <TextBlock Grid.Column="1"
+                                               VerticalAlignment="Center"
+                                               FontSize="12"
+                                               Text="{x:Bind ProjectName}" />
+                                </Grid>
+
+                            </ToggleButton.Content>
+                        </ToggleButton>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+                <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="8" />
+                </ItemsRepeater.Layout>
+            </ItemsRepeater>
+
+        </StackPanel>
+    </Grid>
+</Page>

@@ -1,0 +1,10 @@
+﻿{
+    "profiles": {
+      "QuickAttach (Unpackaged)": {
+        "commandName": "Project"
+      },
+      "QuickAttach (Package)": {
+        "commandName": "MsixPackage"
+      }
+    }
+}
