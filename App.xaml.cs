@@ -1,16 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
-
 using QuickAttach.Activation;
 using QuickAttach.Contracts.Services;
-using QuickAttach.Core.Contracts.Services;
-using QuickAttach.Core.Services;
 using QuickAttach.Helpers;
 using QuickAttach.Models;
 using QuickAttach.Services;
 using QuickAttach.ViewModels;
 using QuickAttach.Views;
+using UnhandledExceptionEventArgs = Microsoft.UI.Xaml.UnhandledExceptionEventArgs;
 
 namespace QuickAttach;
 
@@ -27,10 +25,54 @@ public partial class App : Application
         get;
     }
 
+    public static WindowEx MainWindow
+    {
+        get;
+    } = new MainWindow();
+
+    public static UIElement? AppTitlebar
+    {
+        get;
+        set;
+    }
+
+    public App()
+    {
+        InitializeComponent();
+
+        Host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder().UseContentRoot(AppContext.BaseDirectory)
+            .ConfigureServices((context, services) =>
+            {
+                // Default Activation Handler
+                services.AddTransient<ActivationHandler<LaunchActivatedEventArgs>, DefaultActivationHandler>();
+
+                // Other Activation Handlers
+
+                // Services
+                services.AddSingleton<ILocalSettingsService, LocalSettingsService>();
+                services.AddSingleton<IActivationService, ActivationService>();
+                services.AddSingleton<IPageService, PageService>();
+                services.AddSingleton<INavigationService, NavigationService>();
+
+                // Core Services
+                services.AddSingleton<IFileService, FileService>();
+
+                // Views and ViewModels
+                services.AddTransient<MainViewModel>();
+                services.AddTransient<MainPage>();
+
+                // Configuration
+                services.Configure<LocalSettingsOptions>(
+                    context.Configuration.GetSection(nameof(LocalSettingsOptions)));
+            }).Build();
+
+        UnhandledException += App_UnhandledException;
+    }
+
     public static T GetService<T>()
         where T : class
     {
-        if ((App.Current as App)!.Host.Services.GetService(typeof(T)) is not T service)
+        if ((Current as App)!.Host.Services.GetService(typeof(T)) is not T service)
         {
             throw new ArgumentException($"{typeof(T)} needs to be registered in ConfigureServices within App.xaml.cs.");
         }
@@ -38,46 +80,7 @@ public partial class App : Application
         return service;
     }
 
-    public static WindowEx MainWindow { get; } = new MainWindow();
-
-    public static UIElement? AppTitlebar { get; set; }
-
-    public App()
-    {
-        InitializeComponent();
-
-        Host = Microsoft.Extensions.Hosting.Host.
-        CreateDefaultBuilder().
-        UseContentRoot(AppContext.BaseDirectory).
-        ConfigureServices((context, services) =>
-        {
-            // Default Activation Handler
-            services.AddTransient<ActivationHandler<LaunchActivatedEventArgs>, DefaultActivationHandler>();
-
-            // Other Activation Handlers
-
-            // Services
-            services.AddSingleton<ILocalSettingsService, LocalSettingsService>();
-            services.AddSingleton<IActivationService, ActivationService>();
-            services.AddSingleton<IPageService, PageService>();
-            services.AddSingleton<INavigationService, NavigationService>();
-
-            // Core Services
-            services.AddSingleton<IFileService, FileService>();
-
-            // Views and ViewModels
-            services.AddTransient<MainViewModel>();
-            services.AddTransient<MainPage>();
-
-            // Configuration
-            services.Configure<LocalSettingsOptions>(context.Configuration.GetSection(nameof(LocalSettingsOptions)));
-        }).
-        Build();
-
-        UnhandledException += App_UnhandledException;
-    }
-
-    private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+    private void App_UnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         // TODO: Log and handle exceptions as appropriate.
         // https://docs.microsoft.com/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.application.unhandledexception.
@@ -87,6 +90,6 @@ public partial class App : Application
     {
         base.OnLaunched(args);
 
-        await App.GetService<IActivationService>().ActivateAsync(args);
+        await GetService<IActivationService>().ActivateAsync(args);
     }
 }

@@ -1,6 +1,4 @@
-﻿using QuickAttach.Core.Helpers;
-
-using Windows.Storage;
+﻿using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace QuickAttach.Helpers;
