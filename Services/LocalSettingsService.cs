@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
 using QuickAttach.Contracts.Services;
-using QuickAttach.Core.Contracts.Services;
-using QuickAttach.Core.Helpers;
 using QuickAttach.Helpers;
 using QuickAttach.Models;
 using Windows.Storage;

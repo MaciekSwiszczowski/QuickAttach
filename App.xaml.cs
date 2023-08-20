@@ -4,13 +4,13 @@ using Microsoft.UI.Xaml;
 
 using QuickAttach.Activation;
 using QuickAttach.Contracts.Services;
-using QuickAttach.Core.Contracts.Services;
 using QuickAttach.Core.Services;
 using QuickAttach.Helpers;
 using QuickAttach.Models;
 using QuickAttach.Services;
 using QuickAttach.ViewModels;
 using QuickAttach.Views;
+using FileService = QuickAttach.Services.FileService;
 
 namespace QuickAttach;
 

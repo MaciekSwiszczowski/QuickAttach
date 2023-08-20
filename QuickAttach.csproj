@@ -33,10 +33,6 @@
     <PackageReference Include="System.Management" Version="7.0.2" />
     <PackageReference Include="WinUIEx" Version="2.2" />
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\QuickAttach.Core\QuickAttach.Core.csproj" />
-  </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
