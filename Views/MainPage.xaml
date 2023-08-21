@@ -16,7 +16,7 @@
                 <Button Width="25"
                         Padding="0,4"
                         VerticalAlignment="Center"
-                        Command="{x:Bind ViewModel.RunAndAttachCommand}"
+                        Click="{x:Bind ViewModel.RunAndAttach}"
                         Foreground="Green"
                         IsEnabled="{x:Bind ViewModel.CanRunAndAttach, Mode=OneWay}">
                     <Button.Content>
@@ -27,7 +27,7 @@
                 <Button Width="25"
                         Padding="0,4"
                         VerticalAlignment="Center"
-                        Command="{x:Bind ViewModel.RunAndAttachCommand}"
+                        Click="{x:Bind ViewModel.Stop}"
                         Foreground="Red"
                         IsEnabled="{x:Bind ViewModel.CanRunAndAttach.Equals(x:False), Mode=OneWay}">
                     <Button.Content>
@@ -38,8 +38,8 @@
                 <Button Width="25"
                         Padding="0,4"
                         VerticalAlignment="Center"
-                        Command="{x:Bind ViewModel.RunAndAttachCommand}"
-                        Foreground="Red"
+                        Click="{x:Bind ViewModel.RestartAll}"
+                        Foreground="RoyalBlue"
                         IsEnabled="{x:Bind ViewModel.CanRunAndAttach.Equals(x:False), Mode=OneWay}">
                     <Button.Content>
                         <FontIcon Glyph="&#xEF3B;" />

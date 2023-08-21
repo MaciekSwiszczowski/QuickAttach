@@ -2,28 +2,53 @@
 using System.Runtime.InteropServices;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
+using Polly;
+using Polly.Retry;
 
 namespace QuickAttach.Services;
 
 public class VisualStudioAttacher
 {
     private readonly string _targetSolutionName;
-    private readonly DTE? _dte;
+    private readonly DTE _dte;
+    private readonly DebuggerEvents _debuggerEvents;
+    private readonly RetryPolicy _retryPolicy;
 
     public VisualStudioAttacher(string targetSolutionName)
     {
         _targetSolutionName = targetSolutionName;
-        _dte = GetDte();
+        var dte = GetDte();
+
+        _dte = dte ?? throw new ArgumentNullException(null, @"Visual Studio solution not found!!!");
+
+        _debuggerEvents = _dte.Events.DebuggerEvents;
+
+        _retryPolicy = Policy
+            .Handle<COMException>()
+            .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(250 * retryAttempt));
     }
 
     private const string VisualStudioProcessName = "DevEnv";
 
     public bool Build()
     {
-        _dte?.Solution.SolutionBuild.Build(true);
+        _dte.Solution.SolutionBuild.Build(true);
 
-        return _dte?.Solution.SolutionBuild.LastBuildInfo == 0;
+        return _dte.Solution.SolutionBuild.LastBuildInfo == 0;
     }
+
+    public void TerminateDebuggingSession()
+    {
+        _retryPolicy.Execute(() =>
+        {
+            if (_dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode)
+            {
+                //_debuggerEvents.OnEnterDesignMode += DebuggerEvents_OnEnterDesignMode;
+                _dte.Debugger.TerminateAll();
+            }
+        });
+    }
+
 
     private DTE? GetDte()
     {
@@ -47,10 +72,7 @@ public class VisualStudioAttacher
 
     public void Attach(IEnumerable<string> processNames)
     {
-        if (_dte != null)
-        {
-            AttachAll(processNames, _dte);
-        }
+        AttachAll(processNames, _dte);
     }
 
     private void AttachAll(IEnumerable<string> processNames, DTE dte)

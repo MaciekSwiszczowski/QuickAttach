@@ -1,7 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Windows.Input;
-using CommunityToolkit.Mvvm.Input;
+using Polly;
+using Polly.Retry;
 using QuickAttach.Services;
 using DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue;
 using WindowManager = QuickAttach.Services.WindowManager;
@@ -22,18 +22,11 @@ public class MainViewModel : ObservableRecipient
         set => SetProperty(ref _canRunAndAttach, value);
     }
 
-    public ICommand RunAndAttachCommand
-    {
-        get;
-    }
-
     public MainViewModel()
     {
         // Load settings
 
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-
-        RunAndAttachCommand = new RelayCommand(RunAndAttach);
 
         const string folder = @"C:\_work\WorkstationSoftware\build\bin\x64\Debug\net7.0-windows";
 
@@ -45,21 +38,38 @@ public class MainViewModel : ObservableRecipient
         Projects.Add(new Project("GDA", Path.Combine(folder, "GuiDevApp.exe"), Color.FromArgb(155, 34, 177, 74)));
         Projects.Add(new Project("CCE", Path.Combine(folder, "CatheterCatalogEditorApp.exe"),
             Color.FromArgb(255, 66, 157, 158)));
+
+        _processEndRetryPolicy = Policy
+            .HandleResult<bool>(hasExited => !hasExited)
+            .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(50 * retryAttempt));
     }
 
-    private void RunAndAttach()
+    public void Stop()
+    {
+        OnProcessExited(this,  EventArgs.Empty);
+    }
+
+    public void RestartAll()
+    {
+        CanRunAndAttach = true;
+
+        Stop();
+        RunAndAttach();
+    }
+
+    public void RunAndAttach()
     {
         if ( !CanRunAndAttach)
         {
             return;
         }
 
-        CanRunAndAttach = false;
+        _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = false);
 
 
         if ( !Projects.Any(static i => i.Run))
         {
-            CanRunAndAttach = true;
+            _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
             return;
         }
 
@@ -68,12 +78,11 @@ public class MainViewModel : ObservableRecipient
             var attacher = new VisualStudioAttacher("AllApps");
             if (!attacher.Build())
             {
-                CanRunAndAttach = true;
+                _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
                 return;
             }
 
-
-            _processes = new List<Process>();
+            _processes.Clear();
 
             foreach (var project in Projects)
             {
@@ -95,8 +104,6 @@ public class MainViewModel : ObservableRecipient
                 process.EnableRaisingEvents = true;
                 process.Start();
                 process.Exited += OnProcessExited;
-
-                Thread.Sleep(100);
             }
 
             var projectsToStart = Projects
@@ -145,7 +152,11 @@ public class MainViewModel : ObservableRecipient
                     continue;
                 }
 
-                if (!process.CloseMainWindow())
+                process.CloseMainWindow();
+
+                _processEndRetryPolicy.Execute(() => process.HasExited);
+
+                if (!process.HasExited)
                 {
                     process.Kill();
                 }
@@ -155,11 +166,15 @@ public class MainViewModel : ObservableRecipient
                 process.Dispose();
             }
         }
+
+        var attacher = new VisualStudioAttacher("AllApps");
+        attacher.TerminateDebuggingSession();
     }
 
     private bool _canRunAndAttach = true;
-    private List<Process> _processes;
+    private readonly List<Process> _processes = new();
 
     private ObservableCollection<Project> _projects = new();
     private readonly DispatcherQueue _dispatcherQueue;
+    private readonly RetryPolicy<bool> _processEndRetryPolicy;
 }
