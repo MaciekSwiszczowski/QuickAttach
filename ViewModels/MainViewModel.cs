@@ -46,7 +46,8 @@ public class MainViewModel : ObservableRecipient
 
     public void Stop()
     {
-        OnProcessExited(this,  EventArgs.Empty);
+        StopAllProcesses();
+        TerminateDebugSession();
     }
 
     public void RestartAll()
@@ -75,7 +76,10 @@ public class MainViewModel : ObservableRecipient
 
         Task.Run(() =>
         {
-            var attacher = new VisualStudioAttacher("AllApps");
+            var attacher = new VisualStudioAttacher("AllApps")
+            {
+                OnStopDebugging = StopAllProcesses
+            };
             if (!attacher.Build())
             {
                 _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
@@ -137,10 +141,21 @@ public class MainViewModel : ObservableRecipient
         });
     }
 
-    private void OnProcessExited(object? sender, EventArgs e)
+    private void OnProcessExited(object? sender, EventArgs e) => Stop();
+
+    private void TerminateDebugSession()
+    {
+        var attacher = new VisualStudioAttacher("AllApps")
+        {
+            OnStopDebugging = StopAllProcesses
+        };
+        attacher.TerminateDebuggingSession();
+    }
+
+    private void StopAllProcesses()
     {
         _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
-        
+
         foreach (var process in _processes)
         {
             process.Exited -= OnProcessExited;
@@ -166,9 +181,6 @@ public class MainViewModel : ObservableRecipient
                 process.Dispose();
             }
         }
-
-        var attacher = new VisualStudioAttacher("AllApps");
-        attacher.TerminateDebuggingSession();
     }
 
     private bool _canRunAndAttach = true;

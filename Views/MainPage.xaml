@@ -12,7 +12,7 @@
                     Orientation="Horizontal"
                     Spacing="10">
 
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Spacing="2">
                 <Button Width="25"
                         Padding="0,4"
                         VerticalAlignment="Center"

@@ -9,10 +9,13 @@ namespace QuickAttach.Services;
 
 public class VisualStudioAttacher
 {
-    private readonly string _targetSolutionName;
-    private readonly DTE _dte;
-    private readonly DebuggerEvents _debuggerEvents;
-    private readonly RetryPolicy _retryPolicy;
+    public required Action OnStopDebugging
+    {
+        get;
+        init;
+    }
+
+    private const string VisualStudioProcessName = "DevEnv";
 
     public VisualStudioAttacher(string targetSolutionName)
     {
@@ -22,13 +25,7 @@ public class VisualStudioAttacher
         _dte = dte ?? throw new ArgumentNullException(null, @"Visual Studio solution not found!!!");
 
         _debuggerEvents = _dte.Events.DebuggerEvents;
-
-        _retryPolicy = Policy
-            .Handle<COMException>()
-            .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(250 * retryAttempt));
     }
-
-    private const string VisualStudioProcessName = "DevEnv";
 
     public bool Build()
     {
@@ -37,8 +34,7 @@ public class VisualStudioAttacher
         return _dte.Solution.SolutionBuild.LastBuildInfo == 0;
     }
 
-    public void TerminateDebuggingSession()
-    {
+    public void TerminateDebuggingSession() =>
         _retryPolicy.Execute(() =>
         {
             if (_dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode)
@@ -47,7 +43,6 @@ public class VisualStudioAttacher
                 _dte.Debugger.TerminateAll();
             }
         });
-    }
 
 
     private DTE? GetDte()
@@ -73,6 +68,18 @@ public class VisualStudioAttacher
     public void Attach(IEnumerable<string> processNames)
     {
         AttachAll(processNames, _dte);
+
+        _debuggerEvents.OnEnterDesignMode += OnEnterDesignMode;
+    }
+
+    private void OnEnterDesignMode(dbgEventReason reason)
+    {
+        if (reason == dbgEventReason.dbgEventReasonStopDebugging)
+        {
+            OnStopDebugging();
+        }
+
+        _debuggerEvents.OnEnterDesignMode -= OnEnterDesignMode;
     }
 
     private void AttachAll(IEnumerable<string> processNames, DTE dte)
@@ -91,7 +98,12 @@ public class VisualStudioAttacher
             return null;
         }
 
-        var openedSolutionPath = dte.Solution.FullName;
+
+        var openedSolutionPath = string.Empty;
+
+        _retryPolicy.Execute(() => openedSolutionPath = dte.Solution.FullName);
+
+
         return openedSolutionPath.Contains(targetSolutionName, StringComparison.OrdinalIgnoreCase) ? dte : null;
     }
 
@@ -119,7 +131,8 @@ public class VisualStudioAttacher
 
     private void AttachToProcess(DTE dte, string processName)
     {
-        var process = dte.Debugger.LocalProcesses.Cast<Process>().FirstOrDefault(p => p.Name.Contains(processName, StringComparison.OrdinalIgnoreCase));
+        var process = dte.Debugger.LocalProcesses.Cast<Process>()
+            .FirstOrDefault(p => p.Name.Contains(processName, StringComparison.OrdinalIgnoreCase));
 
         if (process != null)
         {
@@ -137,4 +150,13 @@ public class VisualStudioAttacher
 
     [DllImport("ole32.dll")]
     private static extern int CreateBindCtx(uint reserved, out IBindCtx ppbc);
+
+    private readonly DebuggerEvents _debuggerEvents;
+    private readonly DTE _dte;
+    private readonly string _targetSolutionName;
+
+    private readonly RetryPolicy _retryPolicy = Policy
+        .Handle<COMException>()
+        .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(250 * retryAttempt));
+
 }
