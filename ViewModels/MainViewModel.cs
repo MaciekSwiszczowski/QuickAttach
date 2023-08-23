@@ -101,7 +101,10 @@ public class MainViewModel : ObservableRecipient
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = project.Path,
-                    WorkingDirectory = Path.GetDirectoryName(project.Path)
+                    WorkingDirectory = Path.GetDirectoryName(project.Path),
+                    UseShellExecute = false,
+                    CreateNoWindow = false,
+                    WindowStyle = ProcessWindowStyle.Normal,
                 };
 
                 process.StartInfo = startInfo;
@@ -162,12 +165,16 @@ public class MainViewModel : ObservableRecipient
 
             try
             {
+                process.Refresh();
+
                 if (process.HasExited)
                 {
                     continue;
                 }
 
                 process.CloseMainWindow();
+
+                process.Refresh();
 
                 _processEndRetryPolicy.Execute(() => process.HasExited);
 
