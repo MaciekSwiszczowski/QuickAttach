@@ -20,7 +20,7 @@ public class ActivationService : IActivationService
         var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         WeakReferenceMessenger.Default.Register<UpdateWindowSizeMessage>(this,
-            (_, _) => dispatcherQueue.TryEnqueue(async () => UpdateWindowSize2()));
+            (_, message) => dispatcherQueue.TryEnqueue(() => ShowContentDialog(message)));
     }
 
     public async Task ActivateAsync(object activationArgs)
@@ -62,13 +62,13 @@ public class ActivationService : IActivationService
         }
     }
 
-    private async Task UpdateWindowSize2()
+    private async void ShowContentDialog(UpdateWindowSizeMessage message)
     {
-        var dialog = new ContentDialog()
+        var dialog = new ContentDialog
         {
             XamlRoot = (App.MainWindow.Content as Frame)?.XamlRoot,
             Title = "Warning",
-            Content = $"Build failed. Project",
+            Content = message.Message,
             VerticalAlignment = VerticalAlignment.Top,
             HorizontalAlignment = HorizontalAlignment.Left,
             HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -79,12 +79,9 @@ public class ActivationService : IActivationService
         App.MainWindow.Height = 300;
 
         await dialog.ShowAsync(ContentDialogPlacement.Popup);
-
-
-        UpdateWindowSize(App.MainWindow.Content);
         
+        UpdateWindowSize(App.MainWindow.Content);
     }
-
 
     private void UpdateWindowSize(UIElement uiElement)
     {
@@ -93,13 +90,6 @@ public class ActivationService : IActivationService
 
         App.MainWindow.Width = uiElement.DesiredSize.Width + 20;
         App.MainWindow.Height = uiElement.DesiredSize.Height + 35;
-
-        //App.MainWindow.MinWidth = frame.DesiredSize.Width + 20;
-        //App.MainWindow.MaxWidth = frame.DesiredSize.Width + 20;
-        //App.MainWindow.MaxHeight = frame.DesiredSize.Height + 35;
-        //App.MainWindow.MinHeight = frame.DesiredSize.Height + 35;
-        ;
-        
     }
 
     private async Task HandleActivationAsync(object activationArgs)

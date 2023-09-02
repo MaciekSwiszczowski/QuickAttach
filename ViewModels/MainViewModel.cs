@@ -20,16 +20,6 @@ public class MainViewModel : ObservableRecipient
         set => SetProperty(ref _canRunAndAttach, value);
     }
 
-    public bool ShowDialogFlag
-    {
-        get => _showDialogFlag;
-        set
-        {
-            SetProperty(ref _showDialogFlag, value);
-            WeakReferenceMessenger.Default.Send(new UpdateWindowSizeMessage());
-        }
-    }
-
     public XamlRoot? Root
     {
         get; set;
@@ -90,7 +80,7 @@ public class MainViewModel : ObservableRecipient
 
         Task.Run(() =>
         {
-            var attacher = new VisualStudioAttacher("AllApps", ShowDialog)
+            var attacher = new VisualStudioAttacher("AllApps")
             {
                 OnStopDebugging = StopAllProcesses
             };
@@ -159,16 +149,16 @@ public class MainViewModel : ObservableRecipient
         });
     }
 
-    private void ShowDialog(string obj)
-    {   
-        _dispatcherQueue.TryEnqueue(() => ShowDialogFlag = true);
+    private void ShowDialog(string message)
+    {
+        WeakReferenceMessenger.Default.Send(new UpdateWindowSizeMessage(message));
     }
 
     private void OnProcessExited(object? sender, EventArgs e) => Stop();
 
     private void TerminateDebugSession()
     {
-        var attacher = new VisualStudioAttacher("AllApps", _ => ShowDialogFlag = true)
+        var attacher = new VisualStudioAttacher("AllApps")
         {
             OnStopDebugging = StopAllProcesses
         };
@@ -214,6 +204,5 @@ public class MainViewModel : ObservableRecipient
     private readonly RetryPolicy<bool> _processEndRetryPolicy;
     private readonly List<Process> _processes = new();
     private bool _canRunAndAttach = true;
-    private bool _showDialogFlag;
     private ObservableCollection<Project> _projects = new();
 }

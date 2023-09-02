@@ -1,3 +1,3 @@
 ﻿namespace QuickAttach.ViewModels;
 
-public record UpdateWindowSizeMessage;
+public record UpdateWindowSizeMessage(string Message);

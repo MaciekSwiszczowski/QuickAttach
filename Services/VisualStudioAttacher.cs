@@ -1,7 +1,9 @@
 ﻿using System.Management;
 using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.Messaging;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
+using QuickAttach.ViewModels;
 
 namespace QuickAttach.Services;
 
@@ -15,10 +17,9 @@ public class VisualStudioAttacher
 
     private const string VisualStudioProcessName = "DevEnv";
 
-    public VisualStudioAttacher(string targetSolutionName, Action<string> showDialog)
+    public VisualStudioAttacher(string targetSolutionName)
     {
         _targetSolutionName = targetSolutionName;
-        _showDialog = showDialog;
         var dte = GetDte();
 
         _dte = dte ?? throw new ArgumentNullException(null, @"Visual Studio solution not found!!!");
@@ -43,32 +44,8 @@ public class VisualStudioAttacher
             return;
         }
 
-        //var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
-        //{
-        //    Content = $"Build failed. Project: {project}",
-        //    Title = "Error",
-        //    CloseButtonText = "Ok",
-        //};
-
-        _showDialog("");
-
-        //dialog.SizeChanged += (_, args) =>
-        //{
-        //    App.MainWindow.MinWidth = 0;
-        //    App.MainWindow.MaxWidth = double.PositiveInfinity;
-        //    App.MainWindow.MaxHeight = double.PositiveInfinity;
-        //    App.MainWindow.MinHeight = 0;
-        //    App.MainWindow.Width = double.NaN;
-        //    App.MainWindow.Height = double.NaN;
-
-        //    dialog.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        //    dialog.Arrange(new Rect(0, 0, dialog.DesiredSize.Width, dialog.DesiredSize.Height));
-        //    App.MainWindow.Width = dialog.ActualWidth;
-        //    App.MainWindow.Height = dialog.ActualHeight;
-        //};
-
-
-        //await dialog.ShowAsync();
+        var message = $"Build failed, project: {project}";
+        WeakReferenceMessenger.Default.Send(new UpdateWindowSizeMessage(message));
     }
 
     public void TerminateDebuggingSession() =>
@@ -191,7 +168,6 @@ public class VisualStudioAttacher
     private readonly DebuggerEvents _debuggerEvents;
     private readonly DTE _dte;
     private readonly string _targetSolutionName;
-    private readonly Action<string> _showDialog;
 
     private readonly RetryPolicy _retryPolicy = Policy
         .Handle<COMException>()
