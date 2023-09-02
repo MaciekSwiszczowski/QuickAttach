@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.UI.Xaml;
 using QuickAttach.Activation;
 using QuickAttach.Contracts.Services;
 using QuickAttach.Helpers;

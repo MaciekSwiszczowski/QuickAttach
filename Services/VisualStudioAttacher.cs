@@ -2,8 +2,6 @@
 using System.Runtime.InteropServices;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
-using Polly;
-using Polly.Retry;
 
 namespace QuickAttach.Services;
 
@@ -17,9 +15,10 @@ public class VisualStudioAttacher
 
     private const string VisualStudioProcessName = "DevEnv";
 
-    public VisualStudioAttacher(string targetSolutionName)
+    public VisualStudioAttacher(string targetSolutionName, Action<string> showDialog)
     {
         _targetSolutionName = targetSolutionName;
+        _showDialog = showDialog;
         var dte = GetDte();
 
         _dte = dte ?? throw new ArgumentNullException(null, @"Visual Studio solution not found!!!");
@@ -29,9 +28,47 @@ public class VisualStudioAttacher
 
     public bool Build()
     {
+        var buildEvents = _dte.Events.BuildEvents;
+        buildEvents.OnBuildProjConfigDone += OnBuildProjConfigDone;
+
         _dte.Solution.SolutionBuild.Build(true);
 
         return _dte.Solution.SolutionBuild.LastBuildInfo == 0;
+    }
+
+    private void OnBuildProjConfigDone(string project, string projectConfig, string platform, string solutionConfig, bool success)
+    {
+        if (success)
+        {
+            return;
+        }
+
+        //var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+        //{
+        //    Content = $"Build failed. Project: {project}",
+        //    Title = "Error",
+        //    CloseButtonText = "Ok",
+        //};
+
+        _showDialog("");
+
+        //dialog.SizeChanged += (_, args) =>
+        //{
+        //    App.MainWindow.MinWidth = 0;
+        //    App.MainWindow.MaxWidth = double.PositiveInfinity;
+        //    App.MainWindow.MaxHeight = double.PositiveInfinity;
+        //    App.MainWindow.MinHeight = 0;
+        //    App.MainWindow.Width = double.NaN;
+        //    App.MainWindow.Height = double.NaN;
+
+        //    dialog.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        //    dialog.Arrange(new Rect(0, 0, dialog.DesiredSize.Width, dialog.DesiredSize.Height));
+        //    App.MainWindow.Width = dialog.ActualWidth;
+        //    App.MainWindow.Height = dialog.ActualHeight;
+        //};
+
+
+        //await dialog.ShowAsync();
     }
 
     public void TerminateDebuggingSession() =>
@@ -154,9 +191,9 @@ public class VisualStudioAttacher
     private readonly DebuggerEvents _debuggerEvents;
     private readonly DTE _dte;
     private readonly string _targetSolutionName;
+    private readonly Action<string> _showDialog;
 
     private readonly RetryPolicy _retryPolicy = Policy
         .Handle<COMException>()
         .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(250 * retryAttempt));
-
 }

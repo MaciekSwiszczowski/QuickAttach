@@ -1,5 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using Microsoft.UI.Xaml;
 using Windows.UI.ViewManagement;
 
 namespace QuickAttach.Helpers;

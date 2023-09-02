@@ -1,10 +1,8 @@
-﻿using Microsoft.UI.Xaml.Controls;
-
-using QuickAttach.ViewModels;
+﻿using QuickAttach.ViewModels;
 
 namespace QuickAttach.Views;
 
-public sealed partial class MainPage : Page
+public sealed partial class MainPage
 {
     public MainViewModel ViewModel
     {
@@ -15,5 +13,7 @@ public sealed partial class MainPage : Page
     {
         ViewModel = App.GetService<MainViewModel>();
         InitializeComponent();
+
+        Loaded += (_, _) => ViewModel.Root = Root.XamlRoot;
     }
 }

@@ -1,9 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
-using Polly;
-using Polly.Retry;
+using CommunityToolkit.Mvvm.Messaging;
 using QuickAttach.Services;
-using DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue;
 using WindowManager = QuickAttach.Services.WindowManager;
 
 namespace QuickAttach.ViewModels;
@@ -22,6 +20,21 @@ public class MainViewModel : ObservableRecipient
         set => SetProperty(ref _canRunAndAttach, value);
     }
 
+    public bool ShowDialogFlag
+    {
+        get => _showDialogFlag;
+        set
+        {
+            SetProperty(ref _showDialogFlag, value);
+            WeakReferenceMessenger.Default.Send(new UpdateWindowSizeMessage());
+        }
+    }
+
+    public XamlRoot? Root
+    {
+        get; set;
+    }
+
     public MainViewModel()
     {
         // Load settings
@@ -30,7 +43,8 @@ public class MainViewModel : ObservableRecipient
 
         const string folder = @"C:\_work\WorkstationSoftware\build\bin\x64\Debug\net7.0-windows";
 
-        Projects.Add(new Project("ISA", Path.Combine(folder, "InstrumentSimApp.exe"), Color.FromArgb(155, 62, 70, 206)));
+        Projects.Add(new Project("ISA", Path.Combine(folder, "InstrumentSimApp.exe"),
+            Color.FromArgb(155, 62, 70, 206)));
         Projects.Add(new Project("MDA", Path.Combine(folder, "ModelDevApp.exe"), Color.FromArgb(155, 238, 26, 33)));
         Projects.Add(new Project("OGA", Path.Combine(folder, "OperatorGuiApp.exe"),
             Color.FromArgb(155, 157, 216, 230)));
@@ -40,8 +54,8 @@ public class MainViewModel : ObservableRecipient
             Color.FromArgb(255, 66, 157, 158)));
 
         _processEndRetryPolicy = Policy
-            .HandleResult<bool>(hasExited => !hasExited)
-            .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(50 * retryAttempt));
+            .HandleResult<bool>(static hasExited => !hasExited)
+            .WaitAndRetry(10, static retryAttempt => TimeSpan.FromMilliseconds(50 * retryAttempt));
     }
 
     public void Stop()
@@ -60,7 +74,7 @@ public class MainViewModel : ObservableRecipient
 
     public void RunAndAttach()
     {
-        if ( !CanRunAndAttach)
+        if (!CanRunAndAttach)
         {
             return;
         }
@@ -68,7 +82,7 @@ public class MainViewModel : ObservableRecipient
         _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = false);
 
 
-        if ( !Projects.Any(static i => i.Run))
+        if (!Projects.Any(static i => i.Run))
         {
             _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
             return;
@@ -76,10 +90,11 @@ public class MainViewModel : ObservableRecipient
 
         Task.Run(() =>
         {
-            var attacher = new VisualStudioAttacher("AllApps")
+            var attacher = new VisualStudioAttacher("AllApps", ShowDialog)
             {
                 OnStopDebugging = StopAllProcesses
             };
+
             if (!attacher.Build())
             {
                 _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
@@ -104,7 +119,7 @@ public class MainViewModel : ObservableRecipient
                     WorkingDirectory = Path.GetDirectoryName(project.Path),
                     UseShellExecute = false,
                     CreateNoWindow = false,
-                    WindowStyle = ProcessWindowStyle.Normal,
+                    WindowStyle = ProcessWindowStyle.Normal
                 };
 
                 process.StartInfo = startInfo;
@@ -114,7 +129,7 @@ public class MainViewModel : ObservableRecipient
             }
 
             var projectsToStart = Projects
-                .Where(static i => i is { Attach: true, Run: true })
+                .Where(static i => i is {Attach: true, Run: true})
                 .Select(static i => Path.GetFileName(i.Path));
 
             attacher.Attach(projectsToStart);
@@ -124,12 +139,12 @@ public class MainViewModel : ObservableRecipient
             {
                 process.WaitForInputIdle();
 
-                var waitLimit = 25; 
+                var waitLimit = 25;
                 var currentTry = 0;
 
                 while (process.MainWindowHandle == IntPtr.Zero && currentTry < waitLimit)
                 {
-                    Thread.Sleep(100); 
+                    Thread.Sleep(100);
                     process.Refresh();
                     currentTry++;
                 }
@@ -144,11 +159,16 @@ public class MainViewModel : ObservableRecipient
         });
     }
 
+    private void ShowDialog(string obj)
+    {   
+        _dispatcherQueue.TryEnqueue(() => ShowDialogFlag = true);
+    }
+
     private void OnProcessExited(object? sender, EventArgs e) => Stop();
 
     private void TerminateDebugSession()
     {
-        var attacher = new VisualStudioAttacher("AllApps")
+        var attacher = new VisualStudioAttacher("AllApps", _ => ShowDialogFlag = true)
         {
             OnStopDebugging = StopAllProcesses
         };
@@ -190,10 +210,10 @@ public class MainViewModel : ObservableRecipient
         }
     }
 
-    private bool _canRunAndAttach = true;
-    private readonly List<Process> _processes = new();
-
-    private ObservableCollection<Project> _projects = new();
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly RetryPolicy<bool> _processEndRetryPolicy;
+    private readonly List<Process> _processes = new();
+    private bool _canRunAndAttach = true;
+    private bool _showDialogFlag;
+    private ObservableCollection<Project> _projects = new();
 }

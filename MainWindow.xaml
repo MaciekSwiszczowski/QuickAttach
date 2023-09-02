@@ -4,8 +4,6 @@
                    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                    xmlns:windowex="using:WinUIEx"
-                   Width="660"
-                   Height="96"
                    IsAlwaysOnTop="True"
                    IsTitleBarVisible="True"
                    PersistenceId="MainWindow"

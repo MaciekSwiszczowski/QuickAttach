@@ -4,11 +4,13 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:viewModels="using:QuickAttach.ViewModels"
+      HorizontalAlignment="Left"
+      VerticalAlignment="Top"
       Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
       mc:Ignorable="d">
 
-    <Grid>
-        <StackPanel Margin="10"
+    <Grid x:Name="Root">
+        <StackPanel Margin="6"
                     Orientation="Horizontal"
                     Spacing="10">
 
@@ -74,5 +76,14 @@
             </ItemsRepeater>
 
         </StackPanel>
+
+        <!--<Border Width="300"
+                Height="400"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Background="Gray"
+                Visibility="{x:Bind ViewModel.ShowDialogFlag, Mode=OneWay}">
+            <Button Content="OK" />
+        </Border>-->
     </Grid>
 </Page>
