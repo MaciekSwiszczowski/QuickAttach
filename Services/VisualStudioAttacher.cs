@@ -22,13 +22,29 @@ public class VisualStudioAttacher
         _targetSolutionName = targetSolutionName;
         var dte = GetDte();
 
-        _dte = dte ?? throw new ArgumentNullException(null, @"Visual Studio solution not found!!!");
+        if (dte != null)
+        {
+            _dte = dte;
+        }
+        else
+        {
+            var message = $"Error: Unable to locate the '{targetSolutionName}' solution." + Environment.NewLine +
+                          $"To proceed, please ensure that the '{targetSolutionName}' solution is loaded in Visual Studio.";
+            WeakReferenceMessenger.Default.Send(new UpdateWindowSizeMessage(message));
+            return;
+        }
+
 
         _debuggerEvents = _dte.Events.DebuggerEvents;
     }
 
     public bool Build()
     {
+        if (_dte is null)
+        {
+            return false;
+        }
+
         var buildEvents = _dte.Events.BuildEvents;
         buildEvents.OnBuildProjConfigDone += OnBuildProjConfigDone;
 
@@ -51,10 +67,10 @@ public class VisualStudioAttacher
     public void TerminateDebuggingSession() =>
         _retryPolicy.Execute(() =>
         {
-            if (_dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode)
+            if (_dte?.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode)
             {
                 //_debuggerEvents.OnEnterDesignMode += DebuggerEvents_OnEnterDesignMode;
-                _dte.Debugger.TerminateAll();
+                _dte?.Debugger.TerminateAll();
             }
         });
 
@@ -166,7 +182,7 @@ public class VisualStudioAttacher
     private static extern int CreateBindCtx(uint reserved, out IBindCtx ppbc);
 
     private readonly DebuggerEvents _debuggerEvents;
-    private readonly DTE _dte;
+    private readonly DTE? _dte;
     private readonly string _targetSolutionName;
 
     private readonly RetryPolicy _retryPolicy = Policy
