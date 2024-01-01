@@ -1,6 +1,5 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
-using CommunityToolkit.Mvvm.Messaging;
 using QuickAttach.Services;
 using WindowManager = QuickAttach.Services.WindowManager;
 
@@ -80,7 +79,7 @@ public class MainViewModel : ObservableRecipient
 
         Task.Run(() =>
         {
-            var attacher = new VisualStudioAttacher("AllApps")
+            using var attacher = new VisualStudioAttacher("AllApps")
             {
                 OnStopDebugging = StopAllProcesses
             };
@@ -88,6 +87,7 @@ public class MainViewModel : ObservableRecipient
             if (!attacher.Build())
             {
                 _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
+                attacher.OnStopDebugging();
                 return;
             }
 
@@ -158,7 +158,7 @@ public class MainViewModel : ObservableRecipient
 
     private void TerminateDebugSession()
     {
-        var attacher = new VisualStudioAttacher("AllApps")
+        using var attacher = new VisualStudioAttacher("AllApps")
         {
             OnStopDebugging = StopAllProcesses
         };

@@ -1,13 +1,12 @@
 ﻿using System.Management;
 using System.Runtime.InteropServices;
-using CommunityToolkit.Mvvm.Messaging;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
 using QuickAttach.ViewModels;
 
 namespace QuickAttach.Services;
 
-public class VisualStudioAttacher
+public sealed class VisualStudioAttacher : IDisposable
 {
     public required Action OnStopDebugging
     {
@@ -97,9 +96,15 @@ public class VisualStudioAttacher
 
     public void Attach(IEnumerable<string> processNames)
     {
-        AttachAll(processNames, _dte);
+        if (_dte != null)
+        {
+            AttachAll(processNames, _dte);
+        }
 
-        _debuggerEvents.OnEnterDesignMode += OnEnterDesignMode;
+        if (_debuggerEvents != null)
+        {
+            _debuggerEvents.OnEnterDesignMode += OnEnterDesignMode;
+        }
     }
 
     private void OnEnterDesignMode(dbgEventReason reason)
@@ -109,7 +114,10 @@ public class VisualStudioAttacher
             OnStopDebugging();
         }
 
-        _debuggerEvents.OnEnterDesignMode -= OnEnterDesignMode;
+        if (_debuggerEvents != null)
+        {
+            _debuggerEvents.OnEnterDesignMode -= OnEnterDesignMode;
+        }
     }
 
     private void AttachAll(IEnumerable<string> processNames, DTE dte)
@@ -175,15 +183,62 @@ public class VisualStudioAttacher
         }
     }
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    private void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            var buildEvents = _dte?.Events.BuildEvents;
+            if (buildEvents != null)
+            {
+                buildEvents.OnBuildProjConfigDone -= OnBuildProjConfigDone;
+            }
+
+            if (_debuggerEvents != null)
+            {
+                _debuggerEvents.OnEnterDesignMode -= OnEnterDesignMode;
+            }
+        }
+
+        if (_dte != null)
+        {
+            Marshal.ReleaseComObject(_dte);
+        }
+        if (_debuggerEvents != null)
+        {
+            Marshal.ReleaseComObject(_debuggerEvents);
+        }
+
+
+        _disposed = true;
+    }
+    // Override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+    ~VisualStudioAttacher()
+    {
+        // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+        Dispose(false);
+    }
+
     [DllImport("ole32.dll")]
     private static extern int GetRunningObjectTable(uint reserved, out IRunningObjectTable prot);
 
     [DllImport("ole32.dll")]
     private static extern int CreateBindCtx(uint reserved, out IBindCtx ppbc);
 
-    private readonly DebuggerEvents _debuggerEvents;
+    private readonly DebuggerEvents? _debuggerEvents;
     private readonly DTE? _dte;
     private readonly string _targetSolutionName;
+    private bool _disposed;
 
     private readonly RetryPolicy _retryPolicy = Policy
         .Handle<COMException>()

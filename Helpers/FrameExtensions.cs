@@ -1,6 +1,4 @@
-﻿using Microsoft.UI.Xaml.Controls;
-
-namespace QuickAttach.Helpers;
+﻿namespace QuickAttach.Helpers;
 
 public static class FrameExtensions
 {

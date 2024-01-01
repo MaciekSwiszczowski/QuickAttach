@@ -1,6 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.UI.Xaml.Controls;
-using QuickAttach.Activation;
+﻿using QuickAttach.Activation;
 using QuickAttach.Contracts.Services;
 using QuickAttach.ViewModels;
 
@@ -11,6 +9,7 @@ public class ActivationService : IActivationService
     private readonly ActivationHandler<LaunchActivatedEventArgs> _defaultHandler;
     private readonly IEnumerable<IActivationHandler> _activationHandlers;
     private readonly UIElement? _shell = null;
+    private ContentDialog? _dialog;
 
     public ActivationService(ActivationHandler<LaunchActivatedEventArgs> defaultHandler, IEnumerable<IActivationHandler> activationHandlers)
     {
@@ -64,22 +63,22 @@ public class ActivationService : IActivationService
 
     private async void ShowContentDialog(UpdateWindowSizeMessage message)
     {
-        var dialog = new ContentDialog
+        _dialog = new ContentDialog
         {
             XamlRoot = (App.MainWindow.Content as Frame)?.XamlRoot,
             Title = "Warning",
-            Content = message.Message,
             VerticalAlignment = VerticalAlignment.Top,
             HorizontalAlignment = HorizontalAlignment.Left,
             HorizontalContentAlignment = HorizontalAlignment.Left,
-            CloseButtonText = "OK"
-            
+            CloseButtonText = "OK",
+            Height = 280,
+            Content = message.Message
         };
 
         App.MainWindow.Height = 300;
 
-        await dialog.ShowAsync(ContentDialogPlacement.Popup);
-        
+        await _dialog.ShowAsync(ContentDialogPlacement.InPlace);
+
         UpdateWindowSize(App.MainWindow.Content);
     }
 

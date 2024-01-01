@@ -1,6 +1,4 @@
-﻿using Microsoft.UI.Xaml.Controls;
-
-using QuickAttach.Contracts.Services;
+﻿using QuickAttach.Contracts.Services;
 using QuickAttach.ViewModels;
 using QuickAttach.Views;
 

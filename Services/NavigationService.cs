@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 
 using QuickAttach.Contracts.Services;
