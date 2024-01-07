@@ -41,9 +41,11 @@ public class WindowManager
 
     public void SetWindowPositions(List<IntPtr> windowHandles)
     {
+        IntPtr hwndTopmost = new(-1);
+
         foreach (var handle in windowHandles)
         {
-            SetWindowPos(handle, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
+            SetWindowPos(handle, hwndTopmost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
         }
     }
 

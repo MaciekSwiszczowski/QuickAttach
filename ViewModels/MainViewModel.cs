@@ -26,8 +26,6 @@ public class MainViewModel : ObservableRecipient
 
     public MainViewModel()
     {
-        // Load settings
-
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         const string folder = @"C:\_work\WorkstationSoftware\build\bin\x64\Debug\net7.0-windows";
@@ -61,6 +59,7 @@ public class MainViewModel : ObservableRecipient
         RunAndAttach();
     }
 
+    [DebuggerStepThrough]
     public void RunAndAttach()
     {
         if (!CanRunAndAttach)
@@ -79,15 +78,17 @@ public class MainViewModel : ObservableRecipient
 
         Task.Run(() =>
         {
-            using var attacher = new VisualStudioAttacher("AllApps")
+            _attacher?.Dispose();
+            _attacher = new VisualStudioAttacher("AllApps")
             {
                 OnStopDebugging = StopAllProcesses
             };
 
-            if (!attacher.Build())
+            if (!_attacher.Build())
             {
                 _dispatcherQueue.TryEnqueue(() => CanRunAndAttach = true);
-                attacher.OnStopDebugging();
+                _attacher.OnStopDebugging();
+                _attacher.Dispose();
                 return;
             }
 
@@ -122,47 +123,42 @@ public class MainViewModel : ObservableRecipient
                 .Where(static i => i is {Attach: true, Run: true})
                 .Select(static i => Path.GetFileName(i.Path));
 
-            attacher.Attach(projectsToStart);
-
+            _attacher.Attach(projectsToStart);
 
             foreach (var process in _processes)
             {
                 process.WaitForInputIdle();
 
-                var waitLimit = 25;
-                var currentTry = 0;
-
-                while (process.MainWindowHandle == IntPtr.Zero && currentTry < waitLimit)
+                var handle = _mainWindowHandleRetryPolicy.Execute(() =>
                 {
-                    Thread.Sleep(100);
-                    process.Refresh();
-                    currentTry++;
+                    try
+                    {
+                        return process.MainWindowHandle;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return IntPtr.Zero;
+                    }
+                });
+
+                if (handle == IntPtr.Zero)
+                {
+                    continue;
                 }
 
-                if (process.MainWindowHandle != IntPtr.Zero)
-                {
-                    var windowManager = new WindowManager();
-                    var windowHandles = windowManager.GetRootWindowsOfProcess(process.Id);
-                    windowManager.SetWindowPositions(windowHandles);
-                }
+                var windowManager = new WindowManager();
+                var windowHandles = windowManager.GetRootWindowsOfProcess(process.Id);
+                windowManager.SetWindowPositions(windowHandles);
             }
         });
-    }
-
-    private void ShowDialog(string message)
-    {
-        WeakReferenceMessenger.Default.Send(new UpdateWindowSizeMessage(message));
     }
 
     private void OnProcessExited(object? sender, EventArgs e) => Stop();
 
     private void TerminateDebugSession()
     {
-        using var attacher = new VisualStudioAttacher("AllApps")
-        {
-            OnStopDebugging = StopAllProcesses
-        };
-        attacher.TerminateDebuggingSession();
+        _attacher?.TerminateDebuggingSession();
+        _attacher?.Dispose();
     }
 
     private void StopAllProcesses()
@@ -205,4 +201,11 @@ public class MainViewModel : ObservableRecipient
     private readonly List<Process> _processes = new();
     private bool _canRunAndAttach = true;
     private ObservableCollection<Project> _projects = new();
+    private VisualStudioAttacher? _attacher;
+
+    private readonly RetryPolicy<IntPtr> _mainWindowHandleRetryPolicy = Policy
+        .Handle<InvalidOperationException>()
+        .OrResult<IntPtr>(static handle => handle == IntPtr.Zero)
+        .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(150 + 50 * retryAttempt));
+
 }

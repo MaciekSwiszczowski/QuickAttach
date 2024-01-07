@@ -1,8 +1,11 @@
-﻿using System.Management;
+﻿using System.Diagnostics;
+using System.Management;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
 using QuickAttach.ViewModels;
+using Process = EnvDTE.Process;
 
 namespace QuickAttach.Services;
 
@@ -145,7 +148,7 @@ public sealed class VisualStudioAttacher : IDisposable
         return openedSolutionPath.Contains(targetSolutionName, StringComparison.OrdinalIgnoreCase) ? dte : null;
     }
 
-    private DTE? GetDte(int processId)
+    private static DTE? GetDte(int processId)
     {
         GetRunningObjectTable(0, out var rot);
         rot.EnumRunning(out var enumMoniker);
@@ -155,7 +158,8 @@ public sealed class VisualStudioAttacher : IDisposable
         {
             CreateBindCtx(0, out var bindCtx);
             moniker[0].GetDisplayName(bindCtx, null, out var displayName);
-            if (!displayName.StartsWith($"!VisualStudio.DTE.17.0:{processId}"))
+            var pattern = $"!VisualStudio.DTE.\\d+\\.\\d+:{processId}";
+            if (!Regex.IsMatch(displayName, pattern))
             {
                 continue;
             }
@@ -167,10 +171,18 @@ public sealed class VisualStudioAttacher : IDisposable
         return null;
     }
 
+    [DebuggerStepThrough]
     private void AttachToProcess(DTE dte, string processName)
     {
-        var process = dte.Debugger.LocalProcesses.Cast<Process>()
-            .FirstOrDefault(p => p.Name.Contains(processName, StringComparison.OrdinalIgnoreCase));
+        var retryProcessPolicy = Policy
+            .Handle<COMException>()
+            .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(250 * retryAttempt));
+
+        var process = retryProcessPolicy.Execute(() =>
+            dte.Debugger.LocalProcesses
+                .Cast<Process>()
+                .FirstOrDefault(p => p.Name.Contains(processName, StringComparison.OrdinalIgnoreCase)));
+
 
         if (process != null)
         {
