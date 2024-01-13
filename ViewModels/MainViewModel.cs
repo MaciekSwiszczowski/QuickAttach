@@ -21,29 +21,35 @@ public class MainViewModel : ObservableRecipient
 
     public XamlRoot? Root
     {
-        get; set;
+        get;
+        set;
     }
 
     public MainViewModel()
     {
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-
         const string folder = @"C:\_work\WorkstationSoftware\build\bin\x64\Debug\net7.0-windows";
-
-        Projects.Add(new Project("ISA", Path.Combine(folder, "InstrumentSimApp.exe"),
-            Color.FromArgb(155, 62, 70, 206)));
-        Projects.Add(new Project("MDA", Path.Combine(folder, "ModelDevApp.exe"), Color.FromArgb(155, 238, 26, 33)));
-        Projects.Add(new Project("OGA", Path.Combine(folder, "OperatorGuiApp.exe"),
-            Color.FromArgb(155, 157, 216, 230)));
-        Projects.Add(new Project("PDA", Path.Combine(folder, "ProxyDevApp.exe"), Color.FromArgb(155, 255, 126, 37)));
-        Projects.Add(new Project("GDA", Path.Combine(folder, "GuiDevApp.exe"), Color.FromArgb(155, 34, 177, 74)));
-        Projects.Add(new Project("CCE", Path.Combine(folder, "CatheterCatalogEditorApp.exe"),
-            Color.FromArgb(255, 66, 157, 158)));
-
-        _processEndRetryPolicy = Policy
-            .HandleResult<bool>(static hasExited => !hasExited)
-            .WaitAndRetry(10, static retryAttempt => TimeSpan.FromMilliseconds(50 * retryAttempt));
+        var projectDetails = GetProjectDetails();
+        foreach (var detail in projectDetails)
+        {
+            Projects.Add(CreateProject(detail, folder));
+        }
     }
+
+    private Project CreateProject((string Name, string Executable, Color ProjectColor) detail, string folder) =>
+        new(detail.Name, Path.Combine(folder, $"{detail.Executable}.exe"), detail.ProjectColor);
+
+    private List<(string Name, string Executable, Color ProjectColor)> GetProjectDetails() =>
+        new()
+        {
+            ("ISA", "InstrumentSimApp", Color.FromArgb(155, 62, 70, 206)),
+            ("MDA", "ModelDevApp", Color.FromArgb(155, 238, 26, 33)),
+            ("OGA", "OperatorGuiApp", Color.FromArgb(155, 157, 216, 230)),
+            ("PDA", "ProxyDevApp", Color.FromArgb(155, 255, 126, 37)),
+            ("GDA", "GuiDevApp", Color.FromArgb(155, 34, 177, 74)),
+            ("CCE", "CatheterCatalogEditorApp", Color.FromArgb(255, 66, 157, 158))
+        };
+
 
     public void Stop()
     {
@@ -197,15 +203,17 @@ public class MainViewModel : ObservableRecipient
     }
 
     private readonly DispatcherQueue _dispatcherQueue;
-    private readonly RetryPolicy<bool> _processEndRetryPolicy;
-    private readonly List<Process> _processes = new();
-    private bool _canRunAndAttach = true;
-    private ObservableCollection<Project> _projects = new();
-    private VisualStudioAttacher? _attacher;
 
     private readonly RetryPolicy<IntPtr> _mainWindowHandleRetryPolicy = Policy
         .Handle<InvalidOperationException>()
         .OrResult<IntPtr>(static handle => handle == IntPtr.Zero)
         .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(150 + 50 * retryAttempt));
 
+    private readonly RetryPolicy<bool> _processEndRetryPolicy = Policy
+        .HandleResult<bool>(static hasExited => !hasExited)
+        .WaitAndRetry(10, static retryAttempt => TimeSpan.FromMilliseconds(50 * retryAttempt));
+    private readonly List<Process> _processes = new();
+    private VisualStudioAttacher? _attacher;
+    private bool _canRunAndAttach = true;
+    private ObservableCollection<Project> _projects = new();
 }

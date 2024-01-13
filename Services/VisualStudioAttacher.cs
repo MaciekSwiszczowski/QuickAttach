@@ -52,10 +52,14 @@ public sealed class VisualStudioAttacher : IDisposable
 
         _dte.Solution.SolutionBuild.Build(true);
 
-        return _dte.Solution.SolutionBuild.LastBuildInfo == 0;
+        return _retryPolicy.Execute(() => _dte.Solution.SolutionBuild.LastBuildInfo == 0);
     }
 
-    private void OnBuildProjConfigDone(string project, string projectConfig, string platform, string solutionConfig, bool success)
+    private static void OnBuildProjConfigDone(string project,
+        string projectConfig,
+        string platform,
+        string solutionConfig,
+        bool success)
     {
         if (success)
         {
@@ -210,11 +214,14 @@ public sealed class VisualStudioAttacher : IDisposable
 
         if (disposing)
         {
-            var buildEvents = _dte?.Events.BuildEvents;
-            if (buildEvents != null)
+            _retryPolicy.Execute(() =>
             {
-                buildEvents.OnBuildProjConfigDone -= OnBuildProjConfigDone;
-            }
+                var buildEvents = _dte?.Events.BuildEvents;
+                if (buildEvents != null)
+                {
+                    buildEvents.OnBuildProjConfigDone -= OnBuildProjConfigDone;
+                }
+            });
 
             if (_debuggerEvents != null)
             {
@@ -254,5 +261,5 @@ public sealed class VisualStudioAttacher : IDisposable
 
     private readonly RetryPolicy _retryPolicy = Policy
         .Handle<COMException>()
-        .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(250 * retryAttempt));
+        .WaitAndRetry(5, static retryAttempt => TimeSpan.FromMilliseconds(150 * retryAttempt));
 }
